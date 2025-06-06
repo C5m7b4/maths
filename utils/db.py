@@ -7,7 +7,7 @@ load_dotenv()
 # also need psycopy installed
 
 username = os.getenv('USERNAME', '')
-password = os.get('PASSWORD', '')
+password = os.getenv('PASSWORD', '')
 host = os.getenv('HOST', '')
 port = os.getenv('PORT', '5432')  # Default PostgreSQL port
 database = os.getenv('DATABASE', '')
