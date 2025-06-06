@@ -12,6 +12,7 @@ List of topics:
 - Algorithms
 - Arithmetic
 - Charts
+- Numpy
 
 # Time Series
 ![sarmima](images/sarima.png)
