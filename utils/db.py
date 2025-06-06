@@ -1,13 +1,16 @@
 import pyodbc
 from sqlalchemy import create_engine
+from dotenv import load_dotenv
+import os
+load_dotenv()
 
 # also need psycopy installed
 
-username = 'postgres'
-password = '!#6Mikto6!#'
-host = 'goliath.c0f6mwm6g5ra.us-east-1.rds.amazonaws.com'
-port = "5432"
-database = 'goliath'
+username = os.getenv('USERNAME', '')
+password = os.get('PASSWORD', '')
+host = os.getenv('HOST', '')
+port = os.getenv('PORT', '5432')  # Default PostgreSQL port
+database = os.getenv('DATABASE', '')
 
 conn_str = f"postgresql+psycopg2://{username}:{password}@{host}:{port}/{database}"
 
