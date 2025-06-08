@@ -1,3 +1,24 @@
 env
 __pycache__
 .env
+.sam
+# Python cache files
+*.py[cod]
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints
+# Pytest cache
+.pytest_cache
+# Coverage reports
+.coverage
+# Mypy cache
+.mypy_cache
+# Sphinx documentation
+docs/_build
+# Virtual environment directories
+venv/
+# Distribution files
+dist/
+# Build directories
+build/
+# PyInstaller
+*.spec
