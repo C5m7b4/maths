@@ -8,3 +8,4 @@ from .generators import generate_fake_time_series
 from .db import get_db
 from .simple_moving_average import SMA
 from .exponentially_weighted_moving_average import EWMA
+from .holidays import holidays
