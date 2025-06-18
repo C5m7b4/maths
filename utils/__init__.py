@@ -9,3 +9,4 @@ from .db import get_db
 from .simple_moving_average import SMA
 from .exponentially_weighted_moving_average import EWMA
 from .holidays import holidays
+from .rolling_mean import custom_rolling_mean
