@@ -1,7 +1,7 @@
 import pandas as pd
 
 xmas = pd.DataFrame({'holiday': 'christmas',
-                     'ds': pd.to_datetime(['2022-12-25', '2023-12-25', '2024-12-25']),
+                     'ds': pd.to_datetime(['2022-12-25', '2023-12-25', '2024-12-25' , '2025-12-25']),
                     'lower_window': -2,
                     'upper_window': 0})
 
@@ -16,9 +16,9 @@ easter = pd.DataFrame({'holiday': 'easter',
                        'upper_window': 0})
 
 fourth_of_july = pd.DataFrame({'holiday': 'forth_of_july',
-                               'ds': pd.to_datetime(['2022-06-04', '2023-07-04', '2024-07-04']),
+                               'ds': pd.to_datetime(['2022-06-04', '2023-07-04', '2024-07-04', '2025-07-04']),
                                'lower_window': -3,
-                               'upper_window': 1})
+                               'upper_window': 2})
 
 superbowl = pd.DataFrame({'holiday': 'superbowl', 
                           'ds': pd.to_datetime(['2022-02-13', '2023-02-12', '2024-02-11', '2025-02-09' ]),
