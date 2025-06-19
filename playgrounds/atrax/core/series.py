@@ -122,6 +122,43 @@ class Series:
     def __invert__(self):
         return Series([not x for x in self.data], name=f"(~{self.name})")
 
+    def head(self, n=5):
+        """
+        Return the first n elements of the Series.
+        Parameters:
+        n (int): The number of elements to return. Defaults to 5.
+        Returns:
+        Series: A new Series containing the first n elements.
+        """
+        return Series(self.data[:n], name=self.name, index=self.index[:n])
+    
+    def tail(self, n=5):
+        """
+        Return the last n elements of the Series.
+        Parameters:
+        n (int): The number of elements to return. Defaults to 5.
+        Returns:
+        Series: A new Series containing the last n elements.
+        """
+        return Series(self.data[-n:], name=self.name, index=self.index[-n:])
+    
+    def unique(self):
+        """
+        Return the unique values in the Series.
+        Returns:
+        Series: A new Series containing the unique values.
+        """
+        unique_data = list(set(self.data))
+        return Series(unique_data, name=f"Unique({self.name})", index=list(range(len(unique_data))))
+    
+    def nunique(self):
+        """
+        Return the number of unique values in the Series.
+        Returns:
+        int: The number of unique values.
+        """
+        return len(set(self.data))
+
     def to_list(self):
         """
         Convert the Series to a list.
