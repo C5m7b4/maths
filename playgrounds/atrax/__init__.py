@@ -97,9 +97,30 @@ class Atrax:
         return DataSet(rows)
     
     @staticmethod
-    def read_sql(query, conn):
-        cur = conn.cursor()
-        cur.execute(query)
-        columns = [desc[0] for desc in cur.description]
-        rows = cur.fetchall()
-        return DataSet([dict(zip(columns, row)) for row in rows])    
+    def read_sql(query: str, conn, index_col=None) -> "DataSet":
+        """
+        Read SQL query into an Atrax DataSet.
+
+        Parameters:
+            query (str): SQL query to execute
+            conn: Database connection (sqlite3 or psycopg2 or SQLAlchemy)
+            index_col (str): Optional column to use as index
+
+        Returns:
+            DataSet
+        """
+        import pandas as pd
+
+        try:
+            # Use pandas for broad compatibility
+            df = pd.read_sql_query(query, conn)
+
+            # If index_col is provided, move it to index
+            if index_col and index_col in df.columns:
+                df.set_index(index_col, inplace=True)
+
+            return Atrax.read_pandas(df)
+
+        except Exception as e:
+            raise RuntimeError(f"Failed to execute query: {e}")
+    
