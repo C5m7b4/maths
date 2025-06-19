@@ -256,6 +256,24 @@ class Series:
                     raise ValueError(f"Unsupported type for to_datetime: {type(val)}")
         return Series(converted, name=self.name, index=self.index)
     
+    def astype(self, dtype):
+        """
+        Convert the Series to a specified data type.
+        
+        Parameters:
+        dtype (str): dtype (type): The Python type to cast to (e.g., int, float, str)
+        
+        Returns:
+        Series: A new Series with the converted data type.
+        """
+        new_data = []
+        for val in self.data:
+            try:
+                new_data.append(dtype(val))
+            except:
+                new_data.append(None)
+        return Series(new_data, name=self.name, index=self.index)
+    
 
 
 class _Iloc:

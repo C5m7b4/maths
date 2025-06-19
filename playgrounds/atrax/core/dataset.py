@@ -428,6 +428,34 @@ class DataSet:
                     row[column] = func(row[column])
                 except:
                     pass
+    def astype(self, dtype_map: dict):
+        """Convert columns to specified data types.
+        
+        Parameters:
+        -----------
+            dtype_map: (dict): A dictionary mapping column names to target data types.
+        Returns:
+        -----------
+            DataSEt: A new DataSet with converted columns
+        """
+        new_data = []
+
+        for row in self.data:
+            new_row = row.copy()
+            for col, dtype in dtype_map.items():
+                if col in new_row:
+                    try:
+                        new_row[col] = dtype(new_row[col])
+
+                    except:
+                        new_row[col] = None # or raise error
+            new_data.append(new_row)
+        new_ds = DataSet(new_data)
+
+        # preserve the index
+        new_ds._index = self._index
+        new_ds._index_name = self._index_name
+        return new_ds
 
 class GroupBy:
     def __init__(self, data, by):
