@@ -1,7 +1,14 @@
 import statistics
+import csv
+import io
 from .series import Series
+from datetime import datetime
 
 class DataSet:
+
+    @property
+    def index(self):
+        return self._index
 
     @property
     def loc(self):
@@ -12,11 +19,11 @@ class DataSet:
     def iloc(self):
         return _iLocIndexer(self)
     
-
-
     def __init__(self, data: list[dict]):
         self.data = data
         self.columns = list(data[0].keys()) if data else []
+        self._index_name = None
+        self._index = [i for i in range(len(data))] # default numeric index
 
     def __getitem__(self, key):
         if isinstance(key, str):
@@ -57,14 +64,36 @@ class DataSet:
         return "\n".join(lines)
     
     def _repr_html_(self):
-        html = "<table style='border-collapse: collapse;'>"
-        html += "<thead><tr>" + "".join(f"<th>{col}</th>" for col in self.columns) + "</tr></thead><tbody>"
-        for row in self.data[:10]:
-            html += "<tr>" + "".join(f"<td>{row.get(col, '')}</td>" for col in self.columns) + "</tr>"
-        if len(self.data) > 10:
-            html += f"<tr><td colspan='{len(self.columns)}'><i>... {len(self.data) - 10} more rows</i></td></tr>"
-        html += "</tbody></table>"
-        return html
+        if not self.data:
+            return "<i>Empty DataSet</i>"
+
+        headers = self.columns.copy()
+        show_index = self._index_name is not None
+
+        # Create header row
+        header_html = "<th></th>" if show_index else ""
+        header_html += "".join(f"<th>{col}</th>" for col in headers)
+
+        # Create data rows
+        body_html = ""
+        for idx, row in zip(self._index, self.data):
+            row_html = ""
+            if show_index:
+                if isinstance(idx, datetime):
+                    idx_str = idx.strftime('%Y-%m-%d')
+                else:
+                    idx_str = str(idx)
+                row_html += f"<td><strong>{idx_str}<strong></td>"
+            row_html += "".join(f"<td>{row.get(col, '')}</td>" for col in headers)
+            body_html += f"<tr>{row_html}</tr>"
+
+        return f"""
+        <table>
+            <thead><tr>{header_html}</tr></thead>
+            <tbody>{body_html}</tbody>
+        </table>
+        """
+
     
     def head(self, n=5):
         """Return the first n rows of the dataset."""
@@ -127,16 +156,62 @@ class DataSet:
     def info(self):
         """Return a summary of the data including the number of rows, columns, and data types."""
         print(f"<class 'atrax.Atrax'>")
-        print(f"Data columns (total {len(self.columns)}):")
+        print(f"columns (total {len(self.columns)}):")
+        if not self.data:
+            print("   No data available")
+            return
+
+        if self._index_name and self._index:
+            index_sample = self._index[0]
+            if isinstance(index_sample, datetime):
+                dtype = "datetime"
+            elif isinstance(index_sample, int):
+                dtype = "int"
+            elif isinstance(index_sample, float):
+                dtype = "float"
+            elif isinstance(index_sample, str):
+                dtype = "str"
+            else:
+                dtype = type(index_sample).__name__
+
+            print(f"Index: {len(self._index)} entries")
+            print(f"  name: {self._index_name}")
+            print(f"  dtype: {dtype}")
+            print("")
+
+        # Now print column info
+        col_stats = {}
 
         for col in self.columns:
-            col_data = [row.get(col, None) for row in self.data]
-            non_null = sum(x is not None for x in col_data)
-            dtype = type(col_data[0]).__name__ if col_data else "Unknown"
-            print(f"  {col:<15} Non-Null Count: {non_null:<5} Dtype: {dtype}")
+            values = [row.get(col) for row in self.data]
+            non_nulls = [v for v in values if v is not None]
 
-        print(f"dtypes: {len(set(type(row[col]).__name__ for row in self.data for col in self.columns if col in row))}")
-        print(f"Memory usage: {len(self.data) * len(self.columns) * 8} bytes (est.)")     
+            sample = non_nulls[0] if non_nulls else None
+            dtype = "unknown"
+
+            if sample is None:
+                dtype = "NoneType"
+            elif isinstance(sample, int):
+                dtype = "int"
+            elif isinstance(sample, float):
+                dtype = "float"
+            elif isinstance(sample, datetime):
+                dtype = "datetime"
+            elif isinstance(sample, bool):
+                dtype = "bool"
+            elif isinstance(sample, str):
+                dtype = "str"
+
+            col_stats[col] = {
+                "dtype": dtype,
+                "non_null": len(non_nulls),
+                "total": len(values),
+            }
+
+        print(f"{'Column':<15} | {'Type':<10} | {'Non-Null':<10} | {'Total':<10}")
+        print("-" * 50)
+        for col, stats in col_stats.items():
+            print(f"{col:<15} | {stats['dtype']:<10} | {stats['non_null']:<10} | {stats['total']}")  
 
     def apply(self, func, axis=1):
         """Apply a function to each row (axis=1) or each column (axis=0).
@@ -247,6 +322,112 @@ class DataSet:
         else:
             return DataSet(new_data)
         
+    def reset_index(self, inplace=False):
+        """Reset the index of the DataSet.
+        
+        Parameters:
+        -----------
+            inplace: (bool): If True, modify the current DataSet; if False, return a new DataSet.
+        Returns:
+        -----------
+            DataSet: A new DataSet object with reset index.
+        """
+        if inplace:
+            self.data = list(self.data)  # rebind reference
+            return None
+        else:
+            return DataSet(list(self.data))
+        
+    def set_index(self, column, inplace=True, drop=False):
+        """Set a column as the index of the DataSet.
+        
+        Parameters:
+        -----------
+            column: (str): The column name to set as index.
+            inplace: (bool): If True, modify the current DataSet; if False, return a new DataSet.
+            drop: (bool): if True, remove column from data
+        Returns:
+        -----------
+            DataSet: A new DataSet object with the specified column as index.
+        """
+        if column not in self.columns:
+            raise KeyError(f"Column '{column}' not found in dataset.")
+        
+        index_vals = [row[column] for row in self.data]
+        
+        if drop:
+            new_data = [{k: v for k, v in row.items() if k != column} for row in self.data]
+        else:
+            new_data = self.data
+
+        if inplace:
+            self._index_name = column
+            self._index = index_vals
+            if drop:
+                self.data = new_data
+                self.columns = list(new_data[0].keys()) if new_data else []
+            return None
+        else:
+            new_ds = DataSet(new_data)
+            new_ds._index_name = column
+            new_ds._index = index_vals
+            return new_ds
+        
+    def to_dict(self):
+        """Convert the DataSet to a list of dictionaries."""
+        return list(self.data)
+    
+    def to_csv(self, path=None):
+        """
+        Convert the DataSet to CSV string or write to file.
+
+        Parameters:
+            path (str): If given, writes CSV to this file path
+
+        Returns:
+            str if path is None
+        """
+        import csv
+        import io
+
+        output = io.StringIO()
+        writer = csv.DictWriter(output, fieldnames=self.columns)
+        writer.writeheader()
+        writer.writerows(self.data)
+
+        if path:
+            with open(path, 'w', newline='') as f:
+                f.write(output.getvalue())
+            return None
+        else:
+            return output.getvalue()  
+        
+    def to_pandas(self):
+        """Convert the DataSet to a pandas DataFrame."""
+        import pandas as pd
+
+        df = pd.DataFrame(self.data)
+        
+        # set index if it exists
+        if self._index_name and self._index:
+            df.index = pd.Index(self._index, name=self._index_name)
+
+        return df
+        
+    def convert_column(self, column: str, func):
+        """Convert a column using a function.
+        
+        Parameters:
+        -----------
+            column: (str): The column name to convert.
+            func: (callable): A function that takes a single value and returns the converted value.
+        """
+        if row in self.data:
+            if column in row:
+                try:
+                    row[column] = func(row[column])
+                except:
+                    pass
 
 class GroupBy:
     def __init__(self, data, by):
@@ -338,30 +519,56 @@ class GroupBy:
         return DataSet(result)        
 
 
+
 class _LocIndexer:
     def __init__(self, dataset):
         self.dataset = dataset
 
     def __getitem__(self, key):
-        row_filter, col_filter = key
+        # ✅ CASE 1: Tuple → (row_filter, col_filter)
+        if isinstance(key, tuple):
+            row_filter, col_filter = key
 
-        # Handle row filter
-        if isinstance(row_filter, Series):
-            if len(row_filter.data) != len(self.dataset.data):
-                raise ValueError("Row filter must match DataSet length")
-            rows = [row for row, keep in zip(self.dataset.data, row_filter.data) if keep]
+        # ✅ CASE 2: Single filter → callable or boolean list
+        elif callable(key) or (isinstance(key, list) and all(isinstance(b, bool) for b in key)):
+            row_filter = key
+            col_filter = self.dataset.columns  # return all columns
+
+        # ✅ CASE 3: Single label (e.g., "2025-03-02")
         else:
-            raise TypeError("Row filter must be a Series")
-
-        # Handle column filter
-        if isinstance(col_filter, list):
-            filtered = [
-                {k: row[k] for k in col_filter if k in row}
-                for row in rows
+            key_val = key
+            if self.dataset._index:
+                index_sample = self.dataset._index[0]
+                if isinstance(index_sample, datetime) and isinstance(key, str):
+                    for fmt in ("%Y-%m-%d", "%m/%d/%Y", "%Y/%m/%d"):
+                        try:
+                            key_val = datetime.strptime(key, fmt)
+                            break
+                        except ValueError:
+                            continue
+            matched_rows = [
+                row for idx, row in zip(self.dataset._index, self.dataset.data)
+                if idx == key_val
             ]
-            return DataSet(filtered)
+            return DataSet(matched_rows)
+
+        # ✅ Apply row filtering
+        if isinstance(row_filter, list) and all(isinstance(b, bool) for b in row_filter):
+            filtered = [row for row, keep in zip(self.dataset.data, row_filter) if keep]
+        elif callable(row_filter):
+            filtered = [row for row in self.dataset.data if row_filter(row)]
         else:
-            raise TypeError("Column selector must be list of strings")
+            filtered = self.dataset.data  # fallback (no filter)
+
+        # ✅ Apply column projection
+        if isinstance(col_filter, str):
+            col_filter = [col_filter]
+
+        result_data = [{col: row.get(col) for col in col_filter} for row in filtered]
+        return DataSet(result_data)
+
+
+
 
 
 class _iLocIndexer:
