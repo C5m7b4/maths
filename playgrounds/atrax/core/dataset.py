@@ -2,6 +2,18 @@ import statistics
 from .series import Series
 
 class DataSet:
+
+    @property
+    def loc(self):
+        return _LocIndexer(self)
+    
+
+    @property
+    def iloc(self):
+        return _iLocIndexer(self)
+    
+
+
     def __init__(self, data: list[dict]):
         self.data = data
         self.columns = list(data[0].keys()) if data else []
@@ -65,6 +77,10 @@ class DataSet:
     def shape(self):
         """Return the shape of the dataset as a tuple (rows, columns)."""
         return (len(self.data), len(self.columns))
+
+    def columns(self):
+        """Return the list of column names in the dataset."""
+        return self.columns
 
     def describe(self):
         """Return a summary of the numeric columns in the dataset.
@@ -147,6 +163,10 @@ class DataSet:
             return DataSet(results)
         else:
             return results
+    
+    def copy(self):
+        """Return a deep copy of the DataSet."""
+        return DataSet([row.copy() for row in self.data])
         
     def groupby(self, by):
         return GroupBy(self.data, by)
@@ -157,6 +177,75 @@ class DataSet:
         
         sorted_data = sorted(self.data, key=lambda row: row.get(by), reverse=not ascending)
         return DataSet(sorted_data)
+
+    def filter(self, items=None, like=None):
+        if items is not None:
+            return DataSet([{k: row[k] for k in items if k in row} for row in self.data])
+        
+        elif like is not None:
+            matching = [col for col in self.columns if like in col]
+            return DataSet([{k: row[k] for k in matching if k in row} for row in self.data])
+        
+        else:
+            raise ValueError("Must provide 'items' or 'like")
+        
+    def drop(self, columns=None, index=None, inplace=False):
+        """Drop columns or rows frm dataset.
+        
+        Parameters:
+        -----------
+            columns: (list of str): List of column names to drop from the dataset.
+            index :(list): list of row indexes to drop
+            inplace: (bool): Modify the current DataSet or return a new one
+        Returns:
+        -----------
+            DataSet: A new DataSet object with the specified columns removed.
+        """
+        new_data = self.data
+
+        if index is not None:
+            new_data = [row for i, row in enumerate(new_data) if i not in index]
+
+        if columns:
+            new_data = [{k: v for k, v in row.items() if k not in columns} for row in new_data]
+
+        if inplace:
+            self.data = new_data
+            self.columns = list(new_data[0].keys()) if new_data else []
+            return None
+        else:
+            return DataSet(new_data)
+
+
+
+    def rename(self, columns=None, inplace=False):
+        """Rename columns in the dataset.
+        
+        Parameters:
+        -----------
+            columns: (dict): A dictionary mapping old column names to new names.
+            inplace: (bool): If True, modify the current DataSet; if False, return a new DataSet.
+        Returns:
+        -----------
+            DataSet: A new DataSet object with renamed columns.
+        """
+        if not columns:
+            return self
+        
+        new_data = []
+        for row in self.data:
+            new_row = {}
+            for k, v in row.items():
+                new_key = columns.get(k, k)
+                new_row[new_key] = v
+            new_data.append(new_row)
+        
+        if inplace:
+            self.data = new_data
+            self.columns = list(new_data[0].keys()) if new_data else []
+            return None
+        else:
+            return DataSet(new_data)
         
 
 class GroupBy:
@@ -247,3 +336,44 @@ class GroupBy:
                 summary[col] = group_key[i]
             result.append(summary)
         return DataSet(result)        
+
+
+class _LocIndexer:
+    def __init__(self, dataset):
+        self.dataset = dataset
+
+    def __getitem__(self, key):
+        row_filter, col_filter = key
+
+        # Handle row filter
+        if isinstance(row_filter, Series):
+            if len(row_filter.data) != len(self.dataset.data):
+                raise ValueError("Row filter must match DataSet length")
+            rows = [row for row, keep in zip(self.dataset.data, row_filter.data) if keep]
+        else:
+            raise TypeError("Row filter must be a Series")
+
+        # Handle column filter
+        if isinstance(col_filter, list):
+            filtered = [
+                {k: row[k] for k in col_filter if k in row}
+                for row in rows
+            ]
+            return DataSet(filtered)
+        else:
+            raise TypeError("Column selector must be list of strings")
+
+
+class _iLocIndexer:
+    def __init__(self, dataset):
+        self.dataset = dataset
+
+    def __getitem__(self, key):
+        row_idx, col_idx = key
+
+        rows = self.dataset.data[row_idx] if isinstance(row_idx, slice) else [self.dataset.data[row_idx]]
+
+        col_names = self.dataset.columns[col_idx] if isinstance(col_idx, slice) else [self.dataset.columns[i] for i in col_idx]
+
+        filtered = [{k: row[k] for k in col_names if k in row} for row in rows]
+        return DataSet(filtered)
