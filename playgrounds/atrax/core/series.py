@@ -158,6 +158,31 @@ class Series:
         int: The number of unique values.
         """
         return len(set(self.data))
+    
+    def isin(self, values):
+        """
+        Check if each element in the Series is in the provided list of values.
+        Parameters:
+        values (list): A list of values to check against.
+        Returns:
+        Series: A new Series containing boolean values indicating membership.
+        """
+        return Series([x in values for x in self.data], name=f"IsIn({self.name})", index=self.index)
+    
+    def between(self, left, right, inclusive=True):
+        """
+        Check if each element in the Series is between two values.
+        Parameters:
+        left (int/float): The lower bound.
+        right (int/float): The upper bound.
+        inclusive (bool): Whether to include the bounds. Defaults to True.
+        Returns:
+        Series: A new Series containing boolean values indicating if each element is between the bounds.
+        """
+        if inclusive:
+            return Series([left <= x <= right for x in self.data], name=f"Between({self.name}, {left}, {right})")
+        else:
+            return Series([left < x < right for x in self.data], name=f"Between({self.name}, {left}, {right}, exclusive)")
 
     def to_list(self):
         """
