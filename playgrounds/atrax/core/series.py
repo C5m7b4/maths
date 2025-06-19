@@ -1,4 +1,4 @@
-
+from datetime import datetime
 
 class Series:
 
@@ -224,6 +224,37 @@ class Series:
             html += f"<tr><td colspan='2'><i>...{len(self.data) - 10} more</i></td></tr>"
         html += "</table>"
         return html 
+    
+    def to_datetime(self, format='%Y-%m-%d', errors='raise'):
+        """
+        Convert the Series to datetime objects.
+        
+        Parameters:
+        format (str): The format of the date strings. Defaults to '%m/%d/%Y'.
+        errors (str): 'raise' to throw errors, 'coerce' to return None on failure
+        
+        Returns:
+        Series: A new Series with datetime objects.
+        """
+        converted = []
+
+        for val in self.data:
+            if isinstance(val, datetime):
+                converted.append(val)
+            elif isinstance(val, str):
+                try:
+                    converted.append(datetime.strptime(val, format))
+                except Exception as e:
+                    if errors == 'coerce':
+                        converted.append(None)
+                    else:
+                        raise ValueError(f"Failed to parse '{val}' as datetime: {e}")
+            else:
+                if errors == 'coerce':
+                    converted.append(None)
+                else:
+                    raise ValueError(f"Unsupported type for to_datetime: {type(val)}")
+        return Series(converted, name=self.name, index=self.index)
     
 
 
