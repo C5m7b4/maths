@@ -20,10 +20,26 @@ class DataSet:
         return _iLocIndexer(self)
     
     def __init__(self, data: list[dict]):
+        """Initialize the DataSet.
+        
+        Parameters:
+        -----------
+            data: (list[dict] or dict[list]): Either row oriented or column oriented data.
+        """
+        if isinstance(data, dict):
+            lengths = [len(v) for v in data.values()]
+            if len(set(lengths)) != 1:
+                raise ValueError("All columns must have the same length")
+
+            keys = list(data.keys())
+            values = zip(*data.values())
+            data = [dict(zip(keys, row)) for row in values]
+
+
         self.data = data
         self.columns = list(data[0].keys()) if data else []
         self._index_name = None
-        self._index = [i for i in range(len(data))] # default numeric index
+        self._index = list(range(len(data)))
 
     def __getitem__(self, key):
         if isinstance(key, str):

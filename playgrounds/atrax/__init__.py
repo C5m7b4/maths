@@ -6,10 +6,35 @@ import pandas as pd
 
 from .core.series import Series
 from .core.dataset import DataSet
+from .core.qcut import qcut
 
 class Atrax:
     Series = Series
     DataSet = DataSet
+    qcut = qcut
+
+    @staticmethod
+    def date_range(start, end=None, periods=None, freq='D'):
+        """Generate a list of datetime values.
+        
+        Parameters:
+            start (str | datetime): start date
+            end (str | datetime): end date (optional if periods is given)
+            periods (int): number of periods to generate
+            freq (str): frequency string (e.g. 'D', 'W' 'M')
+
+        Returns:
+            list[datetime]: list of datetime objects
+        """
+        if isinstance(start, str):
+            start = pd.to_datetime(start)
+        if isinstance(end, str) and end is not None:
+            end = pd.to_datetime(end)
+
+        dr = pd.date_range(start=start, end=end, periods=periods, freq=freq)
+        #return list[dr.to_pydatetime()]
+        return dr
+
 
     @staticmethod
     def read_pandas(df: pd.DataFrame) -> 'DataSet':
